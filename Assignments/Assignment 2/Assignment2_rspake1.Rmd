@@ -1,0 +1,136 @@
+---
+title: "Assignment_2_rspake1"
+output: html_document
+---
+
+## Part A
+
+In this section I will be answering the questions asked in Part A.
+
+# Question 1
+"What  is  the  key  idea  behind  bagging?  Can  bagging  deal  both  with  high  variance 
+(overfitting) and high bias (underfitting)?"
+
+- The Key concept behind bagging (bootstratp aggregation) is that we are reducing variance by selecting random samples of the training set using replacement (any given value may appear multiple times or not at all) and then each weak learner is fit on  each data sample. This method is used to fight overfitting (variance) and would not be a viable option to tackle underfitting.
+
+# Question 2
+"Why bagging models are computationally more efficient when compared to boosting 
+models with the same number of weak learners?"
+
+- Because in Boosting, trees are grown sequentially where each tree is grown using information from the previously grown trees, where in bagging, there is no sequential growth. 
+
+# Question 3
+"James is thinking of creating an ensemble mode to predict whether a given stock will 
+go up or down in the next week.  He has trained several decision tree models but each model 
+is not performing any better than a random model. The models are also very similar to each 
+other. Do you think creating an ensemble model by combining these tree models can boost 
+the performance? Discuss your answer."
+
+- The main issue here is that James has created several decision tree models that are too similar to each other. Using the ensemble method of boosting is helpful in this case as the failures from the previous iterations can be used to make the next iterations better. However, it is also important to remember that having trees that are not similar is important as it helps us develop a more robust model. As such, I would recommend going back to the beginning as well and rebuilding the decision trees to be more different from each other by implementing a penalty for choosing a specific attribute at a certain level too many times. 
+
+# Question 4
+"Consider the following Table that classifies some objects into two classes of edible (+) 
+and non- edible (-), based on some characteristics such as the object color, size and shape. 
+What would be the Information gain for splitting the dataset based on the “Size” attribute? "
+
+- central to this question, we must remember that Information Gain = entropy(parent)-[avg. entropy(children)]
+
+Using the data provided, we find that the **parent** entropy is **0.988699**
+the entropy of the **small size** is **0.811278** and **large size** entropy is **0.954434**.
+
+Using this calculation, we can determine that the **Information Gain** is **0.105843**.
+
+# Question 5
+"Why is it important that the m parameter (number of attributes available at each 
+split) to be optimally set in random forest models? Discuss the implications of setting this 
+parameter too small or too large."
+
+- If m is set too large (all predictors p) then it would be no different than just using bagging and should thus be avoided as we will not get proper diversity. Alternatively if m is too small, each tree will not be very predictive as they will be too constrained at each node to a very small fraction of attributes. Allowing random forests to be optimally set is important as the key concept in random forests is that at each node, a random sample of predictors are used so that not every node is similar (as in bagging) and will result in a more accurate predictor.
+
+## Part B
+This part of the assignment involves building decision tree and random forest models to answer a number of questions. We will use the Carseats dataset that is part of the ISLR package. 
+
+```{r carseats}
+library(ISLR)
+library(dplyr)
+library(glmnet)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+Carseats_Filtered <- Carseats %>% select("Sales", "Price", "Advertising", "Population", "Age", "Income", "Education")
+```
+
+## Question 1
+" Build  a  decision  tree  regression  model  to  predict  Sales  based  on  all  other  attributes 
+("Price", "Advertising", "Population", "Age", "Income" and "Education").  Which attribute is 
+used at the top of the tree (the root node) for splitting?"
+
+```{r pressure, echo=FALSE}
+Model_1 <- rpart(Sales~., data=Carseats_Filtered, method = 'anova')
+
+plot(Model_1)
+text(Model_1)
+```
+Based off of what we see above, **Price Greater than or equal to 94.5** is our root node for splitting.
+
+## Queston 2
+"Consider the following input:
+Sales=9, Price=6.54, Population=124, Advertising=0, Age=76, Income= 110, Education=10
+What will be the estimated Sales for this record using the decision tree model?"
+
+```{r}
+Sales <- c(9)
+Price <- c(6.54)
+Population <- c(124)
+Advertising <- c(0)
+Age <- c(76)
+Income <- c(110)
+Education <- c(10)
+
+Test <- data.frame(Sales,Price,Population,Advertising,Age,Income,Education)
+```
+Now that we have created our test set to run through our model, we will predict Sales.
+
+```{r}
+Pred_sales_2 <- predict(Model_1, Test)
+Pred_sales_2
+```
+According to our predict function, the decision tree indicates that **9.58625** sales will take place with this given record.
+
+## Question 3
+"Use the caret function to train a random forest (method=’rf’) for the same dataset. Use 
+the caret default settings. By default, caret will examine the “mtry” values of 2,4, and 6.         
+Recall that mtry is the number of attributes available for splitting at each splitting node. 
+Which mtry value gives the best performance? "
+
+```{r}
+set.seed(123)
+
+Model_forest_caret <- train(Sales~., data = Carseats_Filtered, method = 'rf')
+```
+
+```{r}
+summary(Model_forest_caret)
+print(Model_forest_caret)
+plot(Model_forest_caret)
+```
+
+
+Since **2** mtry has the lowest RMSE, this value is the best fit for mtry. 
+
+## Question 4
+"Customize the search grid by checking the model’s performance for mtry values of 2, 
+3 and 5 using 3 repeats of 5-fold cross validation."
+
+```{r}
+control <- trainControl(method="repeatedcv", number=5, repeats=3, search="grid")
+tunegrid <- expand.grid(.mtry=c(2,3,5))
+rf_gridsearch <- train(Sales~., data=Carseats_Filtered, method="rf", tuneGrid=tunegrid,trControl=control)
+print(rf_gridsearch)
+plot(rf_gridsearch)
+```
+
+
+After checking mtry at 2,3, and 5 while using 5-fold crossvalidaion with 3 repeats, we still find that **2** mtry is the preferred mtry with the lowest RMSE of **2.388490**. 
+
