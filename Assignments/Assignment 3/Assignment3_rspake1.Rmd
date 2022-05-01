@@ -1,0 +1,149 @@
+---
+title: "Assignment3_rspake1_SVM"
+output: html_document
+---
+
+
+## Assignment 3
+
+In this first part we are going to answer the questions to Part A, then in the second part we will build an SVM linear regression model and a neural network regression model.
+
+
+## Part A
+
+**QA1**
+- "What is the difference between SVM with hard margin and soft margin?"
+
+A hard margin is a SVM model that is very strict with its margins and will not let the model violate them. Conversely, a soft margin SVM model is lenient with its margins and will violate them to a certain extent if it lead to a better split. 
+
+**QA2** 
+- "What is the role of the cost parameter, C, in SVM (with soft margin) classifiers?"
+
+The cost parameter assigns weight to the constraints. It tells the model how strict it can be with its constraints. A small C allows for the model to be lenient with constraints and ignore constraints where necessary, leading to a **large margin**.
+
+A large C has the opposite effect and tells the model to strictly follow the constraints, leading to a **narrow margin**.
+
+where C = infinity, the constraints are a **hard margin**. 
+
+In regards to soft margins: they provide a trade off between the margins and the number of mistakes/margin violations allowed. 
+
+**QA3** 
+- "Will the following perceptron be activated (2.8 is the activation threshold)"
+
+0.1 -> 0.8 _
+              -> 2.8 ->
+11.1 -> -0.2-
+
+**This perceptron will not activate as the result is -2.14**. This happens as a result of 11.1*-0.2 = -2.22, when you add the 0.08 from the resulting math at the top, resulting in -2.14. 
+
+**QA4**
+- "What is the role of alpha, the learning rate in the delta rule?"
+
+The learning rate sets how to change the weights (w) as a function of the inputs (x), outputs (y) and the target (t). 
+
+A higher alpha (learning rate), the faster the changes to weight take place. A lower alpha will result in smoother changes in weight. By using high learning rate in the beginning to get closer to the target then switch to a smaller rate to smoothly reach the optimal value. 
+
+
+## Part B
+
+This part of the assignment involves building SVM and neural network regression models to 
+answer a number of questions. We will use the Carseats dataset that is part of the ISLR package (you need to install and load the library). 
+
+We may also need the following packages: caret, dplyr, and glmnet 
+
+```{r carseats Part B}
+library(ISLR)
+library(dplyr)
+library(glmnet)
+library(caret)
+library(kernlab)
+```
+
+For this assignment, we only need the following attributes: "Sales", "Price", "Advertising", 
+"Population", "Age", "Income" and "Education". The goal of the assignment is to build models 
+to predict the sales of the carseats (“Sales” attribute) using the other attributes. 
+
+```{r carseats}
+Carseats_Filtered <- Carseats %>% select("Sales", "Price", "Advertising","Population","Age","Income","Education") 
+```
+
+**QB1**
+- "Build a linear SVM regression model to predict Sales based on all other attributes **("Price", "Advertising", "Population", "Age", "Income" and "Education")**. Hint: use caret train() with method set to  “svmLinear”. What is the R-squared of the model?"
+
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(23)
+
+svm_Linear <- train(Sales~., data = Carseats_Filtered, method = "svmLinear",
+                    trControl=trctrl,
+                    preProcess = c("center", "scale"),
+                    tuneLength = 10)
+svm_Linear
+
+```
+In the above model, I added a train control section that adds cross validation to the model. 
+
+**The R^2 of the model is 0.369034**. 
+
+
+**QB2**
+- "Customize the search grid by checking the model’s performance for C parameter of  
+0.1,.5,1 and 10 using 2 repeats of 5-fold cross validation."
+
+```{r}
+grid <- expand.grid(C = c(0.1,0.5,1,10))
+trctrl2 <- trainControl(method = "repeatedcv", number = 5, repeats = 2)
+
+svm_Linear_Grid <- train(Sales~., data = Carseats_Filtered, method = "svmLinear",
+                         trControl=trctrl2,
+                         preProcess = c("center", "scale"),
+                         tuneGrid = grid,
+                         tuneLength = 10)
+
+svm_Linear_Grid
+```
+
+In this step we have added a search grid at the desired points. We have also adjusted the cross validation as instructed. The interesting outcome is that as we increase C, the change decreases. The difference between 1 and 10 is much less than between 0.1 and 0.5. With this, we can see that **0.5** is the best C available. 
+
+**QB3**
+- "Train a neural network model to predict Sales based on all other attributes **("Price", "Advertising", "Population", "Age", "Income" and "Education")**. Hint: use caret train() with method set to “nnet”. What is the R-square of the model with the best hyper parameters (using default caret search grid) – hint: don’t forget to scale the data."
+
+```{r}
+set.seed(23)
+
+numfolds <- trainControl(method = 'LOOCV', verboseIter = FALSE)
+
+nnet_Cars <- train(Sales~., data = Carseats_Filtered, method = "nnet",
+                    preProcess = c("center", "scale"),
+                   trControl = numfolds)
+nnet_Cars
+```
+
+The model selected size = 1 and decay 1e-04 as the most optimal model using RMSE. The specific Rsquared for this model is **"NAN"**. The closest Rsquared is **0.32235623** for a model with decay 1e-01 and RMSE of 7.082396.
+
+**QB4**
+- "Consider the following input: **Sales=9, Price=6.54, Population=124, Advertising=0, Age=76, Income= 110, Education=10** What will be the estimated Sales for this record using the above neuralnet model?"
+
+```{r}
+Sales <- c(9)
+Price <- c(6.54)
+Population <- c(124)
+Advertising <- c(0)
+Age <- c(76)
+Income <- c(110)
+Education <- c(10)
+
+Test <- data.frame(Sales, Price, Population, Advertising, Age, Income, Education)
+```
+
+Now that we have established the test data that is needed, it is time to predict using our network.
+
+```{r}
+Pred_sales <- predict(nnet_Cars, Test)
+
+Pred_sales
+```
+According to the Neural Net built using the instructions provided, the model predicts that only **1** sale will take place with the given record. This result is troubling as in the previous assignment, the decision tree concluded that 9.5 sales would occur at this record. I believe that using the Keras package and building a model using "keras_model_sequential" may create a more adjustable neural network model that would provide a better outcome.
+
+
+
